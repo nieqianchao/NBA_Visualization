@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="//d3js.org/d3.v3.min.js"></script>
+    <script src="http://d3js.org/topojson.v1.min.js"></script>
+    <style>
+        .text_color {
+            fill:red;
+        }
+        div.tooltip {
+            position: absolute;
+            text-align: center;
+            width: 60px;
+            height: 28px;
+            padding: 2px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+        g.controltick {
+            fill: none;
+            stroke: #666;
+            stroke-width: 2px;
+        }
+        g.yclass {
+            fill: none;
+            stroke: #666;
+            stroke-width: 2px;
+        }
+        .domain text {
+            font: 10px sans-serif;
+        }
+
+        .selecting rect {
+            fill-opacity: .2;
+        }
+
+        .selecting rect.selected {
+            fill-opacity:1;
+        }
+        .controltick .tick{ display: none; }
+
+        .controltick path.domain line{
+            stroke-width:0.1px;
+        }
+
+
+        .brush .extent {
+            stroke: #fff;
+            fill-opacity:.123;
+            shape-rendering: crispEdges;
+        }
+.MyCircle {
+    fill: #FCAD62;
+}
+
+.line {
+    fill: none;
+    stroke: #FCAD62;
+    stroke-width: 1.5px;
+}
+path.line {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+
+path.area {
+  fill: #e7e7e7;
+}
+
+.axis {
+  shape-rendering: crispEdges;
+}
+
+.x.axis line {
+  stroke: #fff;
+}
+.x.axis path {
+  fill: none;
+  stroke: #000;
+}
+.x.axis .minor {
+  stroke-opacity: .5;
+}
+
+.inner_line line {
+    fill: none;
+    stroke:#E7E7E7;
+    shape-rendering: crispEdges;
+}
+.y.axis line,
+.y.axis path {
+  fill: none;
+  stroke: #000;
+}
+
+    </style>
+</head>
+<body>
+<script>
+    function compare(teams){
+        team1 = teams[0]
+        team2 = teams[1]
+        var parseDate = d3.time.format("%m/%d/%Y").parse;
+        d3.csv('data.csv',function(d){
+            d.MIN = +d.MIN;
+            d.DREB = +d.DREB;
+            d.TOV = +d.TOV;
+            d.REB = +d.REB;
+            d.STL = +d.STL;
+            d.BLK = +d.BLK;
+            d.AST = +d.AST;
+            d.PTS = +d.PTS;
+            d.FGM = +d.FGM;
+            d.FGA = +d.FGA;
+            d.FG_PCT= +d.FG_PCT;
+            d.FG3M = +d.FG3M;
+            d.FG3A = +d.FG3A;
+            d.FG3_PCT = +d.FG3_PCT;
+            d.FT_PCT = +d.FT_PCT;
+            d.OREB = +d.OREB;
+            d.PF = +d.PF;
+            d.FTA = +d.FTA;
+            d.FTM = +d.FTM;
+            d.GAME_DATE = d.GAME_DATE.substring(0,d.GAME_DATE.length-2)+"20"+d.GAME_DATE.substring(d.GAME_DATE.length-2,d.GAME_DATE.length);
+            d.GAME_DATE = parseDate(d.GAME_DATE);
+            return d;
+        }, function (error, data) {
+            if (error) throw error;
+            var tmpdata = filter(data, team1, team2)
+            var tmpdata1 = tmpdata[0];
+            var tmpdata2 = tmpdata[1];
+            var tmpdata = [];
+            for (var i = 0; i < tmpdata1.length; i++){
+                var tmparray = [];
+                tmpdata.push(tmpdata1[i]);
+                tmpdata.push(tmpdata2[i]);
+            }
+            //console.log(tmpdata);
+            var margin = {top: 20, right: 20, bottom: 30, left: 50};
+            var width = 1100 - margin.left - margin.right;
+            var height = 200 - margin.top - margin.bottom;
+            var svg = d3.select("#compare")
+            var g = svg.select('g');
+            if (!svg.empty()) {
+                svg.select('svg').remove()
+
+            }
+            var svg = d3.select("#compare")
+                    .append("svg")
+                    .attr("width",1200)
+                    .attr("height",250)
+                    .append("g")
+                    .attr("transform","translate(100,50)")
+
+            var x = d3.time.scale()
+                    .range([0, width]);
+            var y = d3.scale.linear()
+                    .range([height,0]);
+            var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom")
+                    .tickFormat(d3.time.format("%Y.%m.%d"))
+
+            var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left");
+            x.domain(d3.extent(tmpdata, function(d) { return d.GAME_DATE; }));
+            y.domain([d3.min(tmpdata,function(d){return d.PTS;})-5,d3.max(tmpdata,function(d){return d.PTS;})+5]);
+
+
+            svg.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis)
+                    .selectAll("text")
+                    .style("font-size","10px")
+                    .attr("transform", "rotate(20)")
+                    .attr("y",15);
+            svg.append("g")
+                    .attr("class", "y axis")
+                    .call(yAxis)
+                    .attr("transform", "translate(0,0)")
+                    .selectAll("text")
+                    .style("font-size","10px");
+            var yInner = d3.svg.axis()
+                    .scale(y)
+                    .tickSize(-width,0,0)
+                    .tickFormat("")
+                    .orient("left")
+                    .ticks(5);
+            var yInnerBar=svg.append("g")
+                    .attr("class", "inner_line")
+                    .attr("transform", "translate(0,-25)")
+                    .call(yInner);
+
+            for(var i=0; i < tmpdata1.length; i++){
+                // console.log(team1_detail)
+                svg.append("g")
+                        .append("circle")
+                        .on("mouseover",function(){
+                            var cur_id = d3.select(this).attr("id");
+                            var idx = cur_id.split("_")[1]
+                            console.log(idx);
+                            var team1_detail = tmpdata1[idx];
+                            var team2_detail = tmpdata2[idx];
+                            detail(team1_detail,team2_detail);})
+                        .attr("id","circle1_"+i)
+                        .attr("transform","translate(0,0)")
+                        .attr("r", 6)
+                        .attr("opacity", 0)
+                        .transition()
+                        .duration(1500)
+                        .attr("cx", function(){ return x(tmpdata1[i].GAME_DATE); })
+                        .attr("opacity", 0.8)
+                        .attr("cy", function(){ return y(tmpdata1[i].PTS);})
+                        .attr("fill","#DA70D6");
+                svg.append("g")
+                        .append("circle")
+                        .on("mouseover",function(){
+                            var cur_id = d3.select(this).attr("id");
+                            var idx = cur_id.split("_")[1]
+                            console.log(idx);
+                            var team1_detail = tmpdata1[idx];
+                            var team2_detail = tmpdata2[idx];
+                            detail(team1_detail,team2_detail);})
+                        .attr("id","circle2_"+i)
+                        .attr("transform","translate(0,0)")
+                        .attr("r", 6)
+                        .attr("opacity", 0)
+                        .transition()
+                        .duration(1500)
+                        .attr("cx", function(){ return x(tmpdata2[i].GAME_DATE); })
+                        .attr("opacity", 0.8)
+                        .attr("cy", function(){ return y(tmpdata2[i].PTS); })
+                        .attr("fill","#1E90FF");
+                if(i != 0){
+                    svg.append("g")
+                            .append("line")
+                            .attr("x1",x(tmpdata1[i-1].GAME_DATE))
+                            .attr("y1",y(tmpdata1[i-1].PTS))
+                            .attr("x2",x(tmpdata1[i].GAME_DATE))
+                            .attr("y2",y(tmpdata1[i].PTS))
+                            .attr("opacity", 0)
+                            .transition()
+                            .duration(2300)
+                            .attr("opacity", 1)
+                            .attr("stroke","#DA70D6")
+                    svg.append("g")
+                            .append("line")
+                            .attr("x1",x(tmpdata2[i-1].GAME_DATE))
+                            .attr("y1",y(tmpdata2[i-1].PTS))
+                            .attr("x2",x(tmpdata2[i].GAME_DATE))
+                            .attr("y2",y(tmpdata2[i].PTS))
+                            .attr("opacity", 0)
+                            .transition()
+                            .duration(2300)
+                            .attr("opacity", 1)
+                            .attr("stroke","#1E90FF")
+                }
+            }
+        })
+    }
+
+    function filter(data, team1, team2){
+        var data1 = []
+        var data2 = []
+        for (var i = 0; i < data.length; i++){
+            var matchup = data[i].MATCHUP;
+            var tmp1 = matchup.substring(0,3);
+            var tmp2 = matchup.substring(matchup.length-3,matchup.length);
+            if (tmp1 == team1 && tmp2 == team2){
+                data1.push(data[i]);
+            }
+            if (tmp1 == team2 && tmp2 == team1){
+                data2.push(data[i]);
+            }
+        }
+        return [data1,data2]
+    }
+    function test(game){
+        console.log(game);
+    }
+    function detail(team1_detail,team2_detail){
+
+        detail_1(team1_detail);
+        detail_2(team2_detail);
+    }
+
+    function detail_1(game){
+        var width = 500;
+        var height = 450;
+        var svg = d3.select("#team1")
+        var g = svg.select('g');
+        if (!svg.empty()) {
+            svg.select('svg').remove()
+
+        }
+        var svg = d3.select("#team1")
+                .append("svg")
+                .attr("width",width+100)
+                .attr("height",height)
+                .append("g")
+                .attr("transform","translate(100,30)")
+        var y = 0;
+        var delay = 0;
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.FGA)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FGA)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", delay)
+                .transition()
+                .duration(0)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",380-4*game.FGA)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", delay)
+                .text("Field Goal Attempt"+" ("+game.FGA+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(0)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.FGM)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FGM)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",380-4*game.FGM)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Field Goal Made"+" ("+game.FGM+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.FG3A)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FG3A)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",330-4*game.FG3A)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Three Point Field Goal Attempt"+" ("+game.FG3A+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.FG3M)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FG3M)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",350-4*game.FG3M)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Three Point Field Goal Made"+" ("+game.FG3M+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.FTA)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FTA)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",380-4*game.FTA)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Free Throws Attempt"+" ("+game.FTA+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.FTM)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FTM)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",380-4*game.FTM)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Free Throws Made"+" ("+game.FTM+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.OREB)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.OREB)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",380-4*game.OREB)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Offensive Rebounds"+" ("+game.OREB+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.DREB)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.DREB)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",380-4*game.DREB)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Defensive Rebounds"+" ("+game.DREB+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.REB)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.REB)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",420-4*game.REB)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Rebounds"+" ("+game.REB+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.AST)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.AST)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",420-4*game.AST)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Assists"+" ("+game.AST+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.STL)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.STL)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",420-4*game.STL)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Steals"+" ("+game.STL+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.BLK)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.BLK)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",420-4*game.BLK)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Blocks"+" ("+game.BLK+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",500-4*game.TOV)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.TOV)
+                .attr("stroke","#DA70D6")
+                .attr("fill","#DA70D6")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",420-4*game.TOV)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Turnovers"+" ("+game.TOV+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+    }
+    function detail_2(game){
+        var width = 500;
+        var height = 450;
+        var svg = d3.select("#team2")
+        var g = svg.select('g');
+        if (!svg.empty()) {
+            svg.select('svg').remove()
+
+        }
+        var svg = d3.select("#team2")
+                .append("svg")
+                .attr("width",width)
+                .attr("height",height)
+                .append("g")
+                .attr("transform","translate(0,30)")
+        var x = d3.scale.linear()
+                .range([0,width-100]);
+        var y = 0;
+        var delay = 0;
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FGA)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.FGA+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Field Goal Attempt"+" ("+game.FGA+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FGM)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.FGM+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Field Goal Made"+" ("+game.FGM+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FG3A)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.FG3A+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Three Point Field Goal Attempt"+" ("+game.FG3A+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FG3M)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.FG3M+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Three Point Field Goal Made"+" ("+game.FG3M+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FTA)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.FTA+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Free Throws Attempt"+" ("+game.FTA+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.FTM)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.FTM+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Free Throws Made"+" ("+game.FTM+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.OREB)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.OREB+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Offensive Rebounds"+" ("+game.OREB+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.DREB)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.DREB+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Defensive Rebounds"+" ("+game.DREB+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.REB)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.REB+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Rebounds"+" ("+game.REB+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.AST)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.AST+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Assists"+" ("+game.AST+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.STL)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.STL+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Steals"+" ("+game.STL+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.BLK)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.BLK+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Blocks"+" ("+game.BLK+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+
+        y += 30
+        svg.append("g")
+                .append("rect")
+                .attr("x",0)
+                .attr("y",y)
+                .attr("height",20)
+                .attr("width",4*game.TOV)
+                .attr("stroke","#1E90FF")
+                .attr("fill","#1E90FF")
+                .attr("opacity", 0)
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+        svg.append("g")
+                .append("text")
+                .attr("x",4*game.TOV+20)
+                .attr("y",y+12)
+                .attr("fill","black")
+                .attr("opacity", 0)
+                .text("Turnovers"+" ("+game.TOV+")")
+                .attr("font-size","10px")
+                .transition()
+                .duration(delay)
+                .attr("opacity", 1)
+    }
+
+
+
+
+
+
+
+
+
+
+
+    var team;
+    var margin = {left:30, right : 30, top:300, bottom: 0};
+    var width = 1100 + margin.left + margin.right,
+            height = 100 + margin.top + margin.bottom;
+
+
+    //Define map projection
+    var projection = d3.geo.albersUsa()
+            .translate([width/3, height/3.5 + 80])
+            .scale([900]);
+
+
+    //Define path generator
+    var path = d3.geo.path()
+            .projection(projection);
+
+    //Map the winrate to opacity[0.3, 0.9]
+    var Opacity = d3.scale.linear()
+            .range([0.2, 0.9]);
+
+    //Map the rank to radius[2, 20]
+    var Scale = d3.scale.linear()
+            .range([2, 20]);
+
+    //Create SVG element
+    var svg = d3.select("body")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .on("click", stopped, true);
+
+    //Creater a group to store states
+    var g = svg.append("g")
+            .attr("class","map");
+
+    var div = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+    //Load in state data, draw the map
+    d3.csv("US-states.csv", function(data) {
+        //Load in GeoJSON data
+        d3.json("US-geo.json", function(json) {
+            //Merge the EastorWest data and GeoJSON
+            //Loop through once for each EastorWest data value
+
+            for (var i = 0; i < data.length; i++) {
+                var dataState = data[i].state;				//Grab state name
+                var dataValue = parseFloat(data[i].value);	//Grab data value, and convert from string to float
+                var dataEASTorWEST = data[i].EASTorWEST;
+                //Find the corresponding state inside the GeoJSON
+                for (var j = 0; j < json.features.length; j++) {
+                    var jsonState = json.features[j].properties.name;
+                    if (dataState == jsonState) {
+                        //Copy the data value into the JSON
+                        json.features[j].properties.EASTorWEST = dataEASTorWEST;
+                        //Stop looking through the JSON
+                        break;
+                    }
+                }
+            }
+
+            //Bind data and create one path per GeoJSON feature
+            g.selectAll("path")
+                    .data(json.features).enter()
+                    .append("path")
+                    .attr("stroke","white")
+                    .attr("stroke-width",2)
+                    .attr("d", path)
+                    .attr("class", function(d) {
+                        return d.properties.postal;})
+                    .style("fill", function(d) {
+                        //Get data value
+                        var EASTorWEST = d.properties.EASTorWEST;
+                        if (EASTorWEST) {
+                            //If value exists…
+                            if (EASTorWEST == "East") {
+                                return "#C6E2FF";
+                            } else {
+                                return "#FFB6C1";
+                            }
+                        } else {
+                            //If value is undefined…
+                            return "#CCCCCC";
+                        }
+                    });
+//                    .on("click", stateClick);
+            //Load in NBA teams data
+            d3.csv("NBA-teams.csv", function(data) {
+                //Map the rank to radius[2, 20]
+                Scale.domain([0, d3.max(data, function(d) { return d.winrate; })]);
+
+                //Map the rank to opacity[0.3, 0.9]
+                Opacity.domain([0, d3.max(data, function(d) { return d.winrate; })]);
+
+
+                //Create nodes group
+                var nodes = g.selectAll("nodes")
+                        .data(data)
+                        .enter()
+                        .append("g")
+                        .attr("class", "team")
+                        .attr("transform", function(d) {
+                            return "translate(" + projection([d.lon, d.lat])[0] + "," + projection([d.lon, d.lat])[1] + ")";});
+
+                var teamList = [];
+
+                //Circles for teams
+                nodes.append("circle")
+                        .attr("class", "AllCircle")
+                        .attr("r", 8)
+                        .style("fill", function(d){
+                            if (d.EASTorWEST == "East") {
+                                return "blue";
+                            } else {
+                                return "red";
+                            };
+                        })
+                        .style("opacity", 0.8)
+                        .attr("stroke","white")
+                        .attr("stroke-width",0.5)
+                        .on("mouseover",function(d){
+//                            console.log(d.teamname);
+//                            console.log(d3.event.pageX);
+//                            console.log(d3.event.pageY);
+                            div.transition()
+                                    .duration(200)
+                                    .style("opacity", .9);
+                            div.html(d.teamname)
+                                    .style("left",d3.event.pageX)
+                                    .style("top",d3.event.pageY);
+                        })
+                        .on("mouseout", function(d){
+                            div.transition()
+                                    .duration(500)
+                                    .style("opacity", 0);
+                        })
+                        .on("click", function(d){
+//                            d3.selectAll("circle").style("fill",function(d){
+//                                if (d.EASTorWEST == "East") {
+//                                    return "blue";
+//                                } else {
+//                                    return "red";
+//                                };
+//                            });
+                            team = d.abb;
+                            var color;
+                            if (teamList.indexOf(team)==-1 && teamList.length >= 2) {
+                                alert("Cannot select more than two teams");
+                                return;
+                            } else if (teamList.indexOf(team) == -1 && teamList.length < 2) {
+                                teamList.push(team);
+                                color = 'yellow';
+                            } else if (teamList.indexOf(team)!= -1) {
+                                if (d.EASTorWEST == 'East'){
+                                    color = 'blue';
+                                } else {
+                                    color = 'red';
+                                }
+                                teamList.splice(teamList.indexOf(team), 1);
+                            }
+                            d3.select(this).style("fill", color);
+                            if (teamList.length == 2) {
+                                compare(teamList);
+                            } else {
+                                console.log("d3.selectAll()");
+//                                console.log(d3.selectAll("#lineChart"));
+//                                console.log((document.getElementsByClassName("lineChart")));
+                                document.getElementById("compare").innerHTML="";
+                                document.getElementById("team1").innerHTML="";
+                                document.getElementById("team2").innerHTML="";
+                            }
+                            svg.selectAll("g.barChart").remove();
+                            svg.selectAll("g.randar").remove();
+                            console.log(teamList);
+                            drawRandarChart(teamList,[0,900]);
+                        });
+//                        .style("cursor", "pointer")
+
+                //Text for temm abbreviation
+                nodes.append("text")
+                        .attr("class", function(d) {
+                            return "text " + d.abb;})
+                        .attr("dx", function(d){
+                            return Scale(d.winrate);})
+                        .attr("dy", ".3em")
+                        .attr("font-size", 13)
+                        .style("fill", "#888888")
+                        .style("font-weight", "bold")
+                        .style("cursor", "default")
+                        .text(function(d) {
+                            return d.abb;});
+            });
+        });
+    });
+    function transit() {
+        d3.selectAll(".AllCircle")
+                .transition()
+                .attr("r", function(d){
+                    //console.log(d); d.abb
+                    return 10;});
+    }
+    var parseDate = d3.time.format("%m/%d/%y").parse;
+    //    var x = d3.time.scale().domain([parseDate("10/27/15"), parseDate("4/13/16")]).range([0,900]);
+    var x = d3.scale.ordinal().rangeRoundBands([0, 900], .2);
+    var y = d3.scale.linear().range([200, 0]);
+    var div = d3.select(".bar").append("div");
+    //change the position of the bar chart at end; Start to draw barChart/
+
+    function stopped() {
+        if (d3.event.defaultPrevented) {
+            d3.event.stopPropagation();
+        }
+    }
+
+    function drawRandarChart(key_list,range) {
+        d3.csv("data.csv", function (data) {
+            x.domain(data.map(function (d) {
+                return d.GAME_DATE;
+            }));
+
+            d_list = ['AST', 'BLK', 'STL', 'REB', 'TOV', 'DREB']
+
+            //custome function
+
+            function groupByArray(xs, key) { return xs.reduce(function (rv, x) { let v = key instanceof Function ? key(x) : x[key]; let el = rv.find((r) => r && r.key === v); if (el) { el.values.push(x); } else { rv.push({ key: v, values: [x] }); } return rv; }, []); }
+
+            function add(a, b) {
+                return a + b;
+            }
+
+            //parse the str into float
+            data.map(function (d) {
+                for (var i = 0; i < d_list.length; i++) {
+                    d[d_list[i]] = parseFloat(d[d_list[i]]);
+                }
+            })
+
+
+            data2 = groupByArray(data, ['TEAM_ABBREVIATION'])
+            // data2 is the grouped data of each team, [{team1:[game1,game2]}], we could filt data2 laterly
+
+
+            //data3 is the total ast for each team
+            //data3 = data2.map(function(d){return d.values.map(function(dd){return dd.AST}).reduce(add,0)})
+
+            //get team id here
+
+            team_list = []
+            console.log(key_list.length);
+            for (var j = 0; j < key_list.length; j++){
+
+                var team = key_list[j];
+                console.log(team)
+                //get team data
+                teamd = data2.filter(function (d) {
+
+                    return (d.key == team )
+                })[0].values
+                //check the sum for each axis
+                //console.log(teamd.map(function(d){return d.AST}).reduce(add,0))
+                teamd = teamd.filter(function(d){
+//            console.log(d.GAME_DATE);
+//            console.log(x(d.GAME_DATE));
+                    return range[0] <= x(d.GAME_DATE) && x(d.GAME_DATE) <= range[1]
+                });
+
+                r_data = [];
+
+
+                for (var i = 0; i < d_list.length; i++) {
+                    max_i = Math.max.apply(null, data2.map(function (d) {
+                        return d.values.filter(function(d){
+//            console.log(d.GAME_DATE);
+//            console.log(x(d.GAME_DATE));
+                            return range[0] <= x(d.GAME_DATE) && x(d.GAME_DATE) <= range[1]
+                        }).map(function (dd) {
+                            return dd[d_list[i]]
+                        }).reduce(add, 0)
+                    }));
+                    team_i = teamd.map(function (d) {
+                        return d[d_list[i]]
+                    }).reduce(add, 0)
+                    r_data.push({axis: d_list[i], value: team_i / max_i})
+
+                }
+                console.log(i);
+                team_list.push(r_data)
+            }
+            console.log(team_list)
+
+
+
+
+            //code from cinnamon
+
+            var margin = {top: 100, right: 100, bottom: 100, left: 100},
+                    width = Math.min(500, window.innerWidth - 10) - margin.left - margin.right,
+                    height = Math.min(width, window.innerHeight - margin.top - margin.bottom - 20);
+            //replace the data here
+            var data = team_list;
+
+            var color = d3.scale.ordinal()
+                    .range(["#EDC951", "#CC333F", "#00A0B0"]);
+
+            var radarChartOptions = {
+                w: width,
+                h: height,
+                margin: margin,
+                maxValue: 0.5,
+                levels: 5,
+                roundStrokes: true,
+                color: color
+            };
+            //Call function to draw the Radar chart
+            RadarChart(".radarChart", data, radarChartOptions);
+
+
+            function RadarChart(id, data, options) {
+                var cfg = {
+                    w: 600,				//Width of the circle
+                    h: 600,				//Height of the circle
+                    margin: {top: 20, right: 20, bottom: 20, left: 20}, //The margins of the SVG
+                    levels: 3,				//How many levels or inner circles should there be drawn
+                    maxValue: 0, 			//What is the value that the biggest circle will represent
+                    labelFactor: 1.25, 	//How much farther than the radius of the outer circle should the labels be placed
+                    wrapWidth: 60, 		//The number of pixels after which a label needs to be given a new line
+                    opacityArea: 0.35, 	//The opacity of the area of the blob
+                    dotRadius: 4, 			//The size of the colored circles of each blog
+                    opacityCircles: 0.1, 	//The opacity of the circles of each blob
+                    strokeWidth: 2, 		//The width of the stroke around each blob
+                    roundStrokes: false,	//If true the area and stroke will follow a round path (cardinal-closed)
+                    color: d3.scale.category10()	//Color function
+                };
+
+                //Put all of the options into a variable called cfg
+                if ('undefined' !== typeof options) {
+                    for (var i in options) {
+                        if ('undefined' !== typeof options[i]) {
+                            cfg[i] = options[i];
+                        }
+                    }//for i
+                }//if
+
+                //If the supplied maxValue is smaller than the actual one, replace by the max in the data
+                var maxValue = Math.max(cfg.maxValue, d3.max(data, function (i) {
+                    return d3.max(i.map(function (o) {
+                        return o.value;
+                    }))
+                }));
+
+                var allAxis = (data[0].map(function (i, j) {
+                            return i.axis
+                        })),	//Names of each axis
+                        total = allAxis.length,					//The number of different axes
+                        radius = Math.min(cfg.w / 2, cfg.h / 2), 	//Radius of the outermost circle
+                        Format = d3.format('%'),			 	//Percentage formatting
+                        angleSlice = Math.PI * 2 / total;		//The width in radians of each "slice"
+
+                //Scale for the radius
+                var rScale = d3.scale.linear()
+                        .range([0, radius])
+                        .domain([0, maxValue]);
+
+                /////////////////////////////////////////////////////////
+                //////////// Create the container SVG and g /////////////
+                /////////////////////////////////////////////////////////
+
+                //Remove whatever chart with the same id/class was present before
+                d3.select(id).select("svg").remove();
+
+                //Initiate the radar chart SVG
+//	var svg = d3.select("body").append("svg")
+//			.attr("width",  cfg.w + cfg.margin.left + cfg.margin.right)
+//			.attr("height", cfg.h + cfg.margin.top + cfg.margin.bottom)
+//			.attr("class", "radar"+id);
+                //Append a g element
+
+                //var g = svg.append("g")
+                //      .attr("class", "randar")
+                //    .attr("transform", "translate(" + (cfg.w / 2 + cfg.margin.left) + "," + (cfg.h / 2 + cfg.margin.top) + ")");
+
+                //var svg = d3.select("body").append("svg")
+                //		.attr("width",  cfg.w + cfg.margin.left + cfg.margin.right)
+                //		.attr("height", cfg.h + cfg.margin.top + cfg.margin.bottom)
+                //		.attr("class", "radar"+id);
+                //Append a g element
+                //这里修改了一下，直接在同一个svg上画雷达图
+                d3.selectAll("g.randar").remove();
+                var g = svg.append("g")
+                        .attr("class", "randar")
+                        .attr("transform", "translate(" + (cfg.w / 2 + cfg.margin.left + 700) + "," + (cfg.h / 2 + cfg.margin.top) + ")");
+                svg.append("text")
+                        .attr("x",0)
+                        .attr("y", 30)
+                        .text("Game Statistic")
+                        .attr("font-family", "sans-serif")
+                        .attr("font-size", "20px")
+                        .attr("fill", "black")
+                        .attr("transform", "translate(" + (cfg.w / 2 + cfg.margin.left + 650) + ",0)");
+                /////////////////////////////////////////////////////////
+                ////////// Glow filter for some extra pizzazz ///////////
+                /////////////////////////////////////////////////////////
+
+                //Filter for the outside glow
+                var filter = g.append('defs').append('filter').attr('id', 'glow'),
+                        feGaussianBlur = filter.append('feGaussianBlur').attr('stdDeviation', '2.5').attr('result', 'coloredBlur'),
+                        feMerge = filter.append('feMerge'),
+                        feMergeNode_1 = feMerge.append('feMergeNode').attr('in', 'coloredBlur'),
+                        feMergeNode_2 = feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+                /////////////////////////////////////////////////////////
+                /////////////// Draw the Circular grid //////////////////
+                /////////////////////////////////////////////////////////
+
+                //Wrapper for the grid & axes
+                var axisGrid = g.append("g").attr("class", "axisWrapper");
+
+                //Draw the background circles
+                axisGrid.selectAll(".levels")
+                        .data(d3.range(1, (cfg.levels + 1)).reverse())
+                        .enter()
+                        .append("circle")
+                        .attr("class", "gridCircle")
+                        .attr("r", function (d, i) {
+                            return radius / cfg.levels * d;
+                        })
+                        .style("fill", "#CDCDCD")
+                        .style("stroke", "#CDCDCD")
+                        .style("fill-opacity", cfg.opacityCircles)
+                        .style("filter", "url(#glow)");
+
+                //Text indicating at what % each level is
+                axisGrid.selectAll(".axisLabel")
+                        .data(d3.range(1, (cfg.levels + 1)).reverse())
+                        .enter().append("text")
+                        .attr("class", "axisLabel")
+                        .attr("x", 4)
+                        .attr("y", function (d) {
+                            return -d * radius / cfg.levels;
+                        })
+                        .attr("dy", "0.4em")
+                        .style("font-size", "10px")
+                        .attr("fill", "#737373")
+                        .text(function (d, i) {
+                            return Format(maxValue * d / cfg.levels);
+                        });
+
+                /////////////////////////////////////////////////////////
+                //////////////////// Draw the axes //////////////////////
+                /////////////////////////////////////////////////////////
+
+                //Create the straight lines radiating outward from the center
+                var axis = axisGrid.selectAll(".axis")
+                        .data(allAxis)
+                        .enter()
+                        .append("g")
+                        .attr("class", "axis");
+                //Append the lines
+                axis.append("line")
+                        .attr("x1", 0)
+                        .attr("y1", 0)
+                        .attr("x2", function (d, i) {
+                            return rScale(maxValue * 1.1) * Math.cos(angleSlice * i - Math.PI / 2);
+                        })
+                        .attr("y2", function (d, i) {
+                            return rScale(maxValue * 1.1) * Math.sin(angleSlice * i - Math.PI / 2);
+                        })
+                        .attr("class", "line")
+                        .style("stroke", "white")
+                        .style("stroke-width", "2px");
+
+                //Append the labels at each axis
+                axis.append("text")
+                        .attr("class", "legend")
+                        .style("font-size", "11px")
+                        .attr("text-anchor", "middle")
+                        .attr("dy", "0.35em")
+                        .attr("x", function (d, i) {
+                            return rScale(maxValue * cfg.labelFactor) * Math.cos(angleSlice * i - Math.PI / 2);
+                        })
+                        .attr("y", function (d, i) {
+                            return rScale(maxValue * cfg.labelFactor) * Math.sin(angleSlice * i - Math.PI / 2);
+                        })
+                        .text(function (d) {
+                            return d
+                        })
+                        .call(wrap, cfg.wrapWidth)
+                        .on("click", function(d){
+                            var t = d
+//                        console.log(d);
+                            console.log(this);
+                            d3.selectAll(".text_color").classed("text_color",false);
+                            d3.select(this).classed("text_color",true);
+//                        this.transition().style("font-size","22px");
+                            svg.selectAll("g.barChart").remove();
+
+                            d3.csv("data.csv", function (data) {
+                                x.domain(data.map(function (d) {
+                                    return d.GAME_DATE;
+                                }));
+
+                                d_list = ['AST', 'BLK', 'STL', 'REB', 'TOV', 'DREB']
+
+                                //custome function
+
+                                function groupByArray(xs, key) { return xs.reduce(function (rv, x) { let v = key instanceof Function ? key(x) : x[key]; let el = rv.find((r) => r && r.key === v); if (el) { el.values.push(x); } else { rv.push({ key: v, values: [x] }); } return rv; }, []); }
+
+//                            svg.selectAll("g.barChart").remove();
+
+                                function add(a, b) {
+                                    return a + b;
+                                }
+
+                                //parse the str into float
+                                data.map(function (d) {
+                                    for (var i = 0; i < d_list.length; i++) {
+                                        d[d_list[i]] = parseFloat(d[d_list[i]]);
+                                    }
+                                })
+
+
+                                data2 = groupByArray(data, ['TEAM_ABBREVIATION'])
+                                var tmp = {}
+                                values = []
+                                data2 = data2.map(function(d){
+                                    tmp[d.key] = d.values.map(function(d){return d[t]}).reduce(add,0)
+                                    values.push(d.values.map(function(d){return d[t]}).reduce(add,0))
+//                                console.log(d.key)
+//                                console.log(d.values.map(function(d){return d[t]}))
+                                })
+//                            console.log(tmp,d3.max(values))
+
+                                d3.selectAll(".AllCircle")
+                                        .transition()
+                                        .attr("r", function(d){
+                                            //console.log(d); d.abb
+                                            return 10*tmp[d.abb]/d3.max(values)});
+                            })
+
+                        });
+
+                /////////////////////////////////////////////////////////
+                ///////////// Draw the radar chart blobs ////////////////
+                /////////////////////////////////////////////////////////
+
+                //The radial line function
+                var radarLine = d3.svg.line.radial()
+                        .interpolate("linear-closed")
+                        .radius(function (d) {
+                            return rScale(d.value);
+                        })
+                        .angle(function (d, i) {
+                            return i * angleSlice;
+                        });
+
+                if (cfg.roundStrokes) {
+                    radarLine.interpolate("cardinal-closed");
+                }
+
+                //Create a wrapper for the blobs
+                var blobWrapper = g.selectAll(".radarWrapper")
+                        .data(data)
+                        .enter().append("g")
+                        .attr("class", "radarWrapper");
+
+                //Append the backgrounds
+                blobWrapper
+                        .append("path")
+                        .attr("class", "radarArea")
+                        .attr("d", function (d, i) {
+                            return radarLine(d);
+                        })
+                        .style("fill", function (d, i) {
+                            return cfg.color(i);
+                        })
+                        .style("fill-opacity", cfg.opacityArea)
+                        .on('mouseover', function (d, i) {
+                            //Dim all blobs
+                            d3.selectAll(".radarArea")
+                                    .transition().duration(200)
+                                    .style("fill-opacity", 0.1);
+                            //Bring back the hovered over blob
+                            d3.select(this)
+                                    .transition().duration(200)
+                                    .style("fill-opacity", 0.7);
+                        })
+                        .on('mouseout', function () {
+                            //Bring back all blobs
+                            d3.selectAll(".radarArea")
+                                    .transition().duration(200)
+                                    .style("fill-opacity", cfg.opacityArea);
+                        });
+
+                //Create the outlines
+                blobWrapper.append("path")
+                        .attr("class", "radarStroke")
+                        .attr("d", function (d, i) {
+                            return radarLine(d);
+                        })
+                        .style("stroke-width", cfg.strokeWidth + "px")
+                        .style("stroke", function (d, i) {
+                            return cfg.color(i);
+                        })
+                        .style("fill", "none")
+                        .style("filter", "url(#glow)");
+
+                //Append the circles
+                blobWrapper.selectAll(".radarCircle")
+                        .data(function (d, i) {
+                            return d;
+                        })
+                        .enter().append("circle")
+                        .attr("class", "radarCircle")
+                        .attr("r", cfg.dotRadius)
+                        .attr("cx", function (d, i) {
+                            return rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2);
+                        })
+                        .attr("cy", function (d, i) {
+                            return rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2);
+                        })
+                        .style("fill", function (d, i, j) {
+                            return cfg.color(j);
+                        })
+                        .style("fill-opacity", 0.8);
+
+                /////////////////////////////////////////////////////////
+                //////// Append invisible circles for tooltip ///////////
+                /////////////////////////////////////////////////////////
+
+
+            //Append the backgrounds
+            blobWrapper
+                    .append("path")
+                    .attr("class", "radarArea")
+                    .attr("d", function (d, i) {
+                        return radarLine(d);
+                    })
+                    .style("fill", function (d, i) {
+//                        console.log(cfg.color)
+                        return cfg.color(i);
+                    })
+                    .style("fill-opacity", cfg.opacityArea)
+                    .on('mouseover', function (d, i) {
+                        //Dim all blobs
+                        d3.selectAll(".radarArea")
+                                .transition().duration(200)
+                                .style("fill-opacity", 0.1);
+                        //Bring back the hovered over blob
+                        d3.select(this)
+                                .transition().duration(200)
+                                .style("fill-opacity", 0.7);
+                    })
+                    .on('mouseout', function () {
+                        //Bring back all blobs
+                        d3.selectAll(".radarArea")
+                                .transition().duration(200)
+                                .style("fill-opacity", cfg.opacityArea);
+                    });
+
+                //Wrapper for the invisible circles on top
+                var blobCircleWrapper = g.selectAll(".radarCircleWrapper")
+                        .data(data)
+                        .enter().append("g")
+                        .attr("class", "radarCircleWrapper");
+
+
+                //Append a set of invisible circles on top for the mouseover pop-up
+                blobCircleWrapper.selectAll(".radarInvisibleCircle")
+                        .data(function (d, i) {
+                            return d;
+                        })
+                        .enter().append("circle")
+                        .attr("class", "radarInvisibleCircle")
+                        .attr("r", cfg.dotRadius * 1.5)
+                        .attr("cx", function (d, i) {
+                            return rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2);
+                        })
+                        .attr("cy", function (d, i) {
+                            return rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2);
+                        })
+                        .style("fill", "none")
+                        .style("pointer-events", "all")
+                        .on("mouseover", function (d, i) {
+                            newX = parseFloat(d3.select(this).attr('cx')) - 10;
+                            newY = parseFloat(d3.select(this).attr('cy')) - 10;
+
+                            tooltip
+                                    .attr('x', newX)
+                                    .attr('y', newY)
+                                    .text(Format(d.value))
+                                    .transition().duration(200)
+                                    .style('opacity', 1);
+                        })
+                        .on("mouseout", function () {
+                            tooltip.transition().duration(200)
+                                    .style("opacity", 0);
+                        });
+
+                //Set up the small tooltip for when you hover over a circle
+                var tooltip = g.append("text")
+                        .attr("class", "tooltip")
+                        .style("opacity", 0);
+
+                /////////////////////////////////////////////////////////
+                /////////////////// Helper Function /////////////////////
+                /////////////////////////////////////////////////////////
+
+                //Taken from http://bl.ocks.org/mbostock/7555321
+                //Wraps SVG text
+                function wrap(text, width) {
+                    text.each(function () {
+                        var text = d3.select(this),
+                                words = text.text().split(/\s+/).reverse(),
+                                word,
+                                line = [],
+                                lineNumber = 0,
+                                lineHeight = 1.4, // ems
+                                y = text.attr("y"),
+                                x = text.attr("x"),
+                                dy = parseFloat(text.attr("dy")),
+                                tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+
+                        while (word = words.pop()) {
+                            line.push(word);
+                            tspan.text(line.join(" "));
+                            if (tspan.node().getComputedTextLength() > width) {
+                                line.pop();
+                                tspan.text(line.join(" "));
+                                line = [word];
+                                tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                            }
+                        }
+                    });
+                }//wrap
+
+            }//RadarChart
+
+
+//    	console.log(r_data)
+            //t1 = data.filter(function(d){return (d.TEAM_ID == "1610612757");}).map(function (d) {return [d.GAME_DATE,parseFloat(d.PLUS_MINUS)]})
+            //console.log(t1);
+
+            //g1 = d3.select("body")
+            //			.append("svg")
+            //			.attr("width", 1500)
+            //			.attr("height", 400);
+            //			//.attr("transform", "translate(0,600)");
+//
+            //    lines = g1.selectAll("line")
+            //        .data(t1)
+            //        .enter()
+            //        .append("line")
+            //        .attr("x1", function(d,i){return i*50;})
+            //        .attr("y1", function(d,i){return 20})
+            //        .attr("x2", function(d,i){return i*50;})
+            //        .attr("y2", function(d,i){return 200;})
+            //        .attr("stroke-width",10)
+            //        .attr("stroke",function(d,i){return ['red','blue'][(d[1]//>0)+0]});
+
+        })
+    }
+
+</script>
+<div>
+    <span class="lineChart" id='compare'></span>
+</div>
+<div>
+    <span class="lineChart" id='team1'></span>
+    <span class="lineChart" id='team2'></span>
+</div>    
+
+</body>
+
+</html>
